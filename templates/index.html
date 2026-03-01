@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BINGO PRO | 職業玩家數據分析儀</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --bg-color: #0b0e14;
+            --card-bg: #1c2331;
+            --primary-gold: #ffcc00;
+            --text-color: #cfd8dc;
+            --danger: #ff4444;
+        }
+        body { 
+            background-color: var(--bg-color); 
+            color: var(--text-color); 
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; 
+            margin: 0; padding: 20px; 
+        }
+        .container { max-width: 1000px; margin: 0 auto; }
+        h1 { text-align: center; color: var(--primary-gold); letter-spacing: 2px; margin-bottom: 10px; }
+        .status-bar { text-align: center; font-size: 0.9em; margin-bottom: 20px; color: #888; }
+        
+        /* 網格佈局 */
+        .dashboard { 
+            display: grid; 
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); 
+            gap: 20px; 
+        }
+        .card { 
+            background: var(--card-bg); 
+            border-radius: 12px; 
+            padding: 20px; 
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+            border-top: 4px solid var(--primary-gold);
+        }
+        .card h2 { margin-top: 0; font-size: 1.2em; color: var(--primary-gold); border-bottom: 1px solid #333; padding-bottom: 10px; }
+        
+        /* 號碼樣式 */
+        .num-container { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+        .num-tag { 
+            background: #37474f; 
+            color: var(--primary-gold); 
+            padding: 6px 12px; 
+            border-radius: 6px; 
+            font-weight: bold; 
+            min-width: 25px; 
+            text-align: center; 
+        }
+        .recom-box { 
+            background: linear-gradient(145deg, #2c3e50, #000); 
+            text-align: center; 
+            padding: 30px; 
+            border: 2px solid var(--primary-gold);
+        }
+        .recom-nums { font-size: 2.5em; font-weight: 900; color: var(--primary-gold); text-shadow: 0 0 15px rgba(255,204,0,0.4); margin: 15px 0; }
+        
+        canvas { width: 100% !important; height: auto !important; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>BINGO PRO 數據後台</h1>
+    <div class="status-bar" id="status-text">正在對接 winwin.tw API 數據源...</div>
+
+    <div class="card recom-box" style="margin-bottom: 20px;">
+        <h2>🎯 職業級四星建議 (AI 篩選)</h2>
+        <div class="recom-nums" id="4star-recom">-- -- -- --</div>
+        <div style="font-size: 0.85em; opacity: 0.7;">依據今日熱門號與高頻連號演算法生成</div>
+    </div>
+
+    <div class="dashboard">
+        <div class="card">
+            <h2>🔥 今日熱門號碼 (Top 10)</h2>
+            <div class="num-container" id="hot-nums"></div>
+        </div>
+
+        <div class="card" style="border-top-color: #546e7a;">
+            <h2>❄️ 今日冷門號碼 (Bottom 10)</h2>
+            <div class="num-container" id="cold-nums"></div>
+        </div>
+
+        <div class="card">
+            <h2>🔗 高頻連號組合</h2>
+            <div class="num-container" id="hot-pairs"></div>
+        </div>
+
+        <div class="card" style="grid-column: span 1;">
+            <h2>📈 超級獎號尾數分佈</h2>
+            <canvas id="tailChart"></canvas>
+        </div>
+    </div>
+</div>
+
+<script>
+    // 從我們建立的 Flask API 獲取分析數據
+    async function updateDashboard() {
+        try {
+            const response = await fetch('/api/strategy');
+            const data = await response.json();
+
+            if (data.status === 'success') {
+                document.getElementById('status-text').innerText = `✅ 數據同步成功：今日已分析 ${data.sample_size} 期紀錄`;
+
+                // 1. 更新四星推薦
+                document.getElementById('4star-recom').innerText = data.four_star_recom.join('  ');
+
+                // 2. 更新熱門/冷門/連號列表
+                const renderList = (id, list) => {
+                    const el = document.getElementById(id);
+                    el.innerHTML = '';
+                    list.forEach(n => {
+                        const span = document.createElement('span');
+                        span.className = 'num-tag';
+                        span.innerText = n;
+                        el.appendChild(span);
+                    });
+                };
+
+                renderList('hot-nums', data.hot_nums);
+                renderList('cold-nums', data.cold_nums);
+                renderList('hot-pairs', data.hot_pairs || ['計算中']);
+
+                // 3. 繪製圖表
+                const ctx = document.getElementById('tailChart').getContext('2d');
+                new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'],
+                        datasets: [{
+                            label: '出現次數',
+                            data: data.tail_distribution,
+                            backgroundColor: '#ffcc00',
+                            borderRadius: 5
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        plugins: { legend: { display: false } },
+                        scales: {
+                            y: { beginAtZero: true, ticks: { color: '#888' } },
+                            x: { ticks: { color: '#888' } }
+                        }
+                    }
+                });
+            } else {
+                document.getElementById('status-text').innerText = '❌ 數據抓取異常，請稍後再試';
+            }
+        } catch (error) {
+            document.getElementById('status-text').innerText = '⚠️ 無法連接到後端伺服器';
+            console.error(error);
+        }
+    }
+
+    updateDashboard();
+</script>
+
+</body>
+</html>
