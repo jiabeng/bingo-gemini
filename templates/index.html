@@ -3,164 +3,103 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BINGO PRO | 職業玩家數據分析儀</title>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <title>BINGO AI 量化分析系統</title>
     <style>
-        :root {
-            --bg-color: #0b0e14;
-            --card-bg: #1c2331;
-            --primary-gold: #ffcc00;
-            --text-color: #cfd8dc;
-            --danger: #ff4444;
-        }
-        body { 
-            background-color: var(--bg-color); 
-            color: var(--text-color); 
-            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; 
-            margin: 0; padding: 20px; 
-        }
-        .container { max-width: 1000px; margin: 0 auto; }
-        h1 { text-align: center; color: var(--primary-gold); letter-spacing: 2px; margin-bottom: 10px; }
-        .status-bar { text-align: center; font-size: 0.9em; margin-bottom: 20px; color: #888; }
-        
-        /* 網格佈局 */
-        .dashboard { 
-            display: grid; 
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); 
-            gap: 20px; 
-        }
-        .card { 
-            background: var(--card-bg); 
-            border-radius: 12px; 
-            padding: 20px; 
-            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
-            border-top: 4px solid var(--primary-gold);
-        }
-        .card h2 { margin-top: 0; font-size: 1.2em; color: var(--primary-gold); border-bottom: 1px solid #333; padding-bottom: 10px; }
-        
-        /* 號碼樣式 */
-        .num-container { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
-        .num-tag { 
-            background: #37474f; 
-            color: var(--primary-gold); 
-            padding: 6px 12px; 
-            border-radius: 6px; 
-            font-weight: bold; 
-            min-width: 25px; 
-            text-align: center; 
-        }
-        .recom-box { 
-            background: linear-gradient(145deg, #2c3e50, #000); 
-            text-align: center; 
-            padding: 30px; 
-            border: 2px solid var(--primary-gold);
-        }
-        .recom-nums { font-size: 2.5em; font-weight: 900; color: var(--primary-gold); text-shadow: 0 0 15px rgba(255,204,0,0.4); margin: 15px 0; }
-        
-        canvas { width: 100% !important; height: auto !important; }
+        :root { --gold: #ffcc00; --bg: #0b0e14; --card: #1c2331; }
+        body { background: var(--bg); color: #cfd8dc; font-family: sans-serif; padding: 20px; }
+        .card { background: var(--card); border-radius: 12px; padding: 20px; margin-bottom: 20px; border-top: 4px solid var(--gold); }
+        .mode-btn { background: #37474f; color: white; border: none; padding: 10px 20px; margin: 5px; cursor: pointer; border-radius: 5px; }
+        .mode-btn.active { background: var(--gold); color: black; font-weight: bold; }
+        table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #252d3d; font-size: 0.9em; }
+        .recom-display { font-size: 2.5em; color: var(--gold); text-align: center; margin: 20px 0; letter-spacing: 5px; }
+        .win-tag { color: #4caf50; font-weight: bold; }
+        .super-tag { background: var(--gold); color: black; padding: 2px 6px; border-radius: 4px; font-weight: bold; }
     </style>
 </head>
 <body>
 
-<div class="container">
-    <h1>BINGO PRO 數據後台</h1>
-    <div class="status-bar" id="status-text">正在對接 winwin.tw API 數據源...</div>
-
-    <div class="card recom-box" style="margin-bottom: 20px;">
-        <h2>🎯 職業級四星建議 (AI 篩選)</h2>
-        <div class="recom-nums" id="4star-recom">-- -- -- --</div>
-        <div style="font-size: 0.85em; opacity: 0.7;">依據今日熱門號與高頻連號演算法生成</div>
+    <h1>🤖 BINGO AI 量化分析系統</h1>
+    
+    <div class="card">
+        <h2>🎯 下期四星建議</h2>
+        <div style="text-align: center;">
+            <button class="mode-btn active" onclick="switchMode('adaptive')">自適應模式</button>
+            <button class="mode-btn" onclick="switchMode('aggressive')">激進型 (熱門)</button>
+            <button class="mode-btn" onclick="switchMode('defensive')">防守型 (冷門)</button>
+        </div>
+        <div class="recom-display" id="recom-nums">-- -- -- --</div>
+        <div style="text-align:center;">今日實戰命中率：<span id="win-rate" style="color:var(--gold)">0</span>%</div>
     </div>
 
-    <div class="dashboard">
-        <div class="card">
-            <h2>🔥 今日熱門號碼 (Top 10)</h2>
-            <div class="num-container" id="hot-nums"></div>
+    <div class="card">
+        <h2>📊 實戰建議比對看板 (含超級獎號查詢)</h2>
+        <div style="margin-bottom: 15px;">
+            查詢日期：<input type="date" id="date-query" onchange="loadData()">
         </div>
-
-        <div class="card" style="border-top-color: #546e7a;">
-            <h2>❄️ 今日冷門號碼 (Bottom 10)</h2>
-            <div class="num-container" id="cold-nums"></div>
-        </div>
-
-        <div class="card">
-            <h2>🔗 高頻連號組合</h2>
-            <div class="num-container" id="hot-pairs"></div>
-        </div>
-
-        <div class="card" style="grid-column: span 1;">
-            <h2>📈 超級獎號尾數分佈</h2>
-            <canvas id="tailChart"></canvas>
+        <div style="overflow-x: auto;">
+            <table>
+                <thead>
+                    <tr>
+                        <th>期數</th>
+                        <th>系統當期建議</th>
+                        <th>實際開獎號碼</th>
+                        <th>超級</th>
+                        <th>命中</th>
+                        <th>結果</th>
+                    </tr>
+                </thead>
+                <tbody id="comp-body"></tbody>
+            </table>
         </div>
     </div>
-</div>
 
-<script>
-    // 從我們建立的 Flask API 獲取分析數據
-    async function updateDashboard() {
-        try {
-            const API_URL = window.location.origin + '/api/strategy';
-            const response = await fetch(API_URL);
-            const data = await response.json();
-            console.log("後端回傳數據:", data);
+    <script>
+        let allData = null;
+        let currentMode = 'adaptive';
 
-            if (data.status === 'success') {
-                document.getElementById('status-text').innerText = `✅ 數據同步成功：今日已分析 ${data.sample_size} 期紀錄`;
-
-                // 1. 更新四星推薦
-                //document.getElementById('4star-recom').innerText = data.four_star_recom.join('  ');
-                const recomNums = data.four_star_recom || ["--", "--", "--", "--"];
-                document.getElementById('4star-recom').innerText = recomNums.join('  ');
-                
-                // 2. 更新熱門/冷門/連號列表
-                const renderList = (id, list) => {
-                    const el = document.getElementById(id);
-                    el.innerHTML = '';
-                    list.forEach(n => {
-                        const span = document.createElement('span');
-                        span.className = 'num-tag';
-                        span.innerText = n;
-                        el.appendChild(span);
-                    });
-                };
-
-                renderList('hot-nums', data.hot_nums || []);
-                renderList('cold-nums', data.cold_nums || []);
-                renderList('hot-pairs', data.hot_pairs || ["無資料"]);
-
-                // 3. 繪製圖表
-                const ctx = document.getElementById('tailChart').getContext('2d');
-                new Chart(ctx, {
-                    type: 'bar',
-                    data: {
-                        labels: ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'],
-                        datasets: [{
-                            label: '出現次數',
-                            data: data.tail_distribution,
-                            backgroundColor: '#ffcc00',
-                            borderRadius: 5
-                        }]
-                    },
-                    options: {
-                        responsive: true,
-                        plugins: { legend: { display: false } },
-                        scales: {
-                            y: { beginAtZero: true, ticks: { color: '#888' } },
-                            x: { ticks: { color: '#888' } }
-                        }
-                    }
-                });
-            } else {
-                document.getElementById('status-text').innerText = '❌ 數據抓取異常，請稍後再試';
-            }
-        } catch (error) {
-            document.getElementById('status-text').innerText = '⚠️ 無法連接到後端伺服器';
-            console.error(error);
+        async function loadData() {
+            const date = document.getElementById('date-query').value;
+            const res = await fetch(`./api/strategy${date ? '?date='+date : ''}`);
+            allData = await res.json();
+            render();
         }
-    }
 
-    updateDashboard();
-</script>
+        function switchMode(mode) {
+            currentMode = mode;
+            document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+            event.target.classList.add('active');
+            render();
+        }
 
+        function render() {
+            if(!allData || allData.status !== 'success') return;
+
+            // 更新建議號碼
+            document.getElementById('recom-nums').innerText = allData.next_recom[currentMode].join(' ');
+            document.getElementById('win-rate').innerText = allData.live_win_rate;
+
+            // 更新表格
+            const body = document.getElementById('comp-body');
+            body.innerHTML = '';
+            allData.history.forEach(item => {
+                const row = `
+                    <tr>
+                        <td>${item.no}<br><small>${item.time}</small></td>
+                        <td style="color:var(--gold)">${item.suggestion.join(',')}</td>
+                        <td style="font-size:0.8em; opacity:0.7;">${item.nums.join(',')}</td>
+                        <td><span class="super-tag">${item.super}</span></td>
+                        <td>${item.match}</td>
+                        <td>${item.is_win ? '<span class="win-tag">★中獎</span>' : '未中'}</td>
+                    </tr>
+                `;
+                body.innerHTML += row;
+            });
+        }
+
+        // 初始載入
+        document.getElementById('date-query').valueAsDate = new Date();
+        loadData();
+    </script>
 </body>
 </html>
