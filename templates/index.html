@@ -99,7 +99,7 @@
     // 從我們建立的 Flask API 獲取分析數據
     async function updateDashboard() {
         try {
-            const response = await fetch('/api/strategy');
+            const response = await fetch('./api/strategy');
             const data = await response.json();
 
             if (data.status === 'success') {
