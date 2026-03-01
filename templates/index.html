@@ -108,8 +108,10 @@
                 document.getElementById('status-text').innerText = `✅ 數據同步成功：今日已分析 ${data.sample_size} 期紀錄`;
 
                 // 1. 更新四星推薦
-                document.getElementById('4star-recom').innerText = data.four_star_recom.join('  ');
-
+                //document.getElementById('4star-recom').innerText = data.four_star_recom.join('  ');
+                const recomNums = data.four_star_recom || ["--", "--", "--", "--"];
+                document.getElementById('4star-recom').innerText = recomNums.join('  ');
+                
                 // 2. 更新熱門/冷門/連號列表
                 const renderList = (id, list) => {
                     const el = document.getElementById(id);
@@ -122,9 +124,9 @@
                     });
                 };
 
-                renderList('hot-nums', data.hot_nums);
-                renderList('cold-nums', data.cold_nums);
-                renderList('hot-pairs', data.hot_pairs || ['計算中']);
+                renderList('hot-nums', data.hot_nums || []);
+                renderList('cold-nums', data.cold_nums || []);
+                renderList('hot-pairs', data.hot_pairs || ["無資料"]);
 
                 // 3. 繪製圖表
                 const ctx = document.getElementById('tailChart').getContext('2d');
