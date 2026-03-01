@@ -55,4 +55,89 @@
         <div class="card">
             <h3>🔗 連號組合 (熱/冷)</h3>
             <div id="hot-pairs" style="margin-bottom: 10px;"></div>
-            <div id="cold-
+            <div id="cold-pairs" style="opacity: 0.6;"></div>
+        </div>
+    </div>
+
+    <div class="card">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+            <h3 style="margin: 0;">📋 實戰比對與歷史查詢</h3>
+            <input type="date" id="q-date" onchange="fetchData()" style="background:#263238; color:white; border:none; padding:5px; border-radius:4px;">
+        </div>
+        <div style="overflow-x: auto;">
+            <table>
+                <thead>
+                    <tr>
+                        <th>期數</th>
+                        <th>系統當時建議</th>
+                        <th>實際開獎</th>
+                        <th>超級</th>
+                        <th>命中</th>
+                        <th>狀態</th>
+                    </tr>
+                </thead>
+                <tbody id="history-body"></tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+    let resData = null;
+    let mode = 'adaptive';
+
+    async function fetchData() {
+        const date = document.getElementById('q-date').value;
+        const res = await fetch(`./api/strategy${date ? '?date='+date : ''}`);
+        resData = await res.json();
+        render();
+    }
+
+    function setMode(m) {
+        mode = m;
+        document.querySelectorAll('.mode-btn').forEach(b => b.classList.toggle('active', b.innerText.includes(m === 'adaptive' ? '自適應' : m === 'aggressive' ? '激進' : '防守')));
+        render();
+    }
+
+    function render() {
+        if(!resData || resData.status !== 'success') return;
+
+        // 1. 更新推薦區
+        document.getElementById('main-recom').innerText = resData.next_recom[mode].map(n => n.toString().padStart(2, '0')).join(' ');
+        document.getElementById('super-recom').innerText = resData.super_recom.map(n => n.toString().padStart(2, '0')).join(' ');
+        document.getElementById('win-rate').innerText = resData.live_win_rate;
+
+        // 2. 更新統計標籤
+        const drawTags = (id, list) => {
+            document.getElementById(id).innerHTML = list.map(n => `<span class="tag">${n}</span>`).join('');
+        };
+        drawTags('hot-nums', resData.hot_nums);
+        drawTags('cold-nums', resData.cold_nums);
+        drawTags('hot-pairs', resData.hot_pairs);
+        drawTags('cold-pairs', resData.cold_pairs);
+
+        // 3. 更新回測表格
+        const body = document.getElementById('history-body');
+        body.innerHTML = '';
+        resData.history.forEach(d => {
+            const row = `
+                <tr>
+                    <td>${d.no}<br><small style="color:#666">${d.time}</small></td>
+                    <td style="color:var(--gold); font-weight:bold;">${d.suggestion.join(', ')}</td>
+                    <td style="font-size:0.8em; opacity:0.6;">${d.nums.join(', ')}</td>
+                    <td><div class="super-ball">${d.super}</div></td>
+                    <td>${d.match}</td>
+                    <td class="${d.is_win ? 'win' : ''}">${d.is_win ? '★ 中獎' : '未中'}</td>
+                </tr>
+            `;
+            body.innerHTML += row;
+        });
+    }
+
+    document.getElementById('q-date').valueAsDate = new Date();
+    fetchData();
+    setInterval(fetchData, 60000); // 每分鐘自動刷新
+</script>
+
+</body>
+</html>
