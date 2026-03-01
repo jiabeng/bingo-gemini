@@ -99,8 +99,10 @@
     // 從我們建立的 Flask API 獲取分析數據
     async function updateDashboard() {
         try {
-            const response = await fetch('./api/strategy');
+            const API_URL = window.location.origin + '/api/strategy';
+            const response = await fetch(API_URL);
             const data = await response.json();
+            console.log("後端回傳數據:", data);
 
             if (data.status === 'success') {
                 document.getElementById('status-text').innerText = `✅ 數據同步成功：今日已分析 ${data.sample_size} 期紀錄`;
