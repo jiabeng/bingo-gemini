@@ -3,103 +3,56 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BINGO AI 量化分析系統</title>
+    <title>BINGO AI 量化策略終端</title>
     <style>
-        :root { --gold: #ffcc00; --bg: #0b0e14; --card: #1c2331; }
-        body { background: var(--bg); color: #cfd8dc; font-family: sans-serif; padding: 20px; }
-        .card { background: var(--card); border-radius: 12px; padding: 20px; margin-bottom: 20px; border-top: 4px solid var(--gold); }
-        .mode-btn { background: #37474f; color: white; border: none; padding: 10px 20px; margin: 5px; cursor: pointer; border-radius: 5px; }
-        .mode-btn.active { background: var(--gold); color: black; font-weight: bold; }
-        table { width: 100%; border-collapse: collapse; margin-top: 15px; }
-        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #252d3d; font-size: 0.9em; }
-        .recom-display { font-size: 2.5em; color: var(--gold); text-align: center; margin: 20px 0; letter-spacing: 5px; }
-        .win-tag { color: #4caf50; font-weight: bold; }
-        .super-tag { background: var(--gold); color: black; padding: 2px 6px; border-radius: 4px; font-weight: bold; }
+        :root { --gold: #ffcc00; --bg: #0b0e14; --card: #1c2331; --text: #cfd8dc; }
+        body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', sans-serif; margin: 0; padding: 15px; }
+        .container { max-width: 1200px; margin: 0 auto; }
+        .card { background: var(--card); border-radius: 12px; padding: 20px; margin-bottom: 15px; border-top: 3px solid var(--gold); box-shadow: 0 4px 15px rgba(0,0,0,0.5); }
+        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 15px; }
+        .recom-box { text-align: center; background: linear-gradient(145deg, #232d3f, #0b0e14); padding: 30px; border: 1px solid #333; }
+        .num-display { font-size: 2.8em; font-weight: 900; color: var(--gold); letter-spacing: 8px; margin: 15px 0; text-shadow: 0 0 20px rgba(255,204,0,0.3); }
+        .tag { display: inline-block; background: #37474f; color: var(--gold); padding: 4px 10px; border-radius: 5px; margin: 3px; font-weight: bold; font-size: 0.9em; }
+        .mode-btn { background: #263238; color: #888; border: 1px solid #444; padding: 8px 16px; cursor: pointer; border-radius: 4px; transition: 0.3s; }
+        .mode-btn.active { background: var(--gold); color: black; border-color: var(--gold); font-weight: bold; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th { text-align: left; color: #888; font-size: 0.8em; border-bottom: 2px solid #333; padding: 10px; }
+        td { padding: 12px 10px; border-bottom: 1px solid #252d3d; font-size: 0.85em; }
+        .win { color: #4caf50; font-weight: bold; }
+        .super-ball { background: var(--gold); color: black; width: 25px; height: 25px; display: inline-flex; align-items: center; justify-content: center; border-radius: 50%; font-weight: bold; }
     </style>
 </head>
 <body>
 
-    <h1>🤖 BINGO AI 量化分析系統</h1>
-    
-    <div class="card">
-        <h2>🎯 下期四星建議</h2>
-        <div style="text-align: center;">
-            <button class="mode-btn active" onclick="switchMode('adaptive')">自適應模式</button>
-            <button class="mode-btn" onclick="switchMode('aggressive')">激進型 (熱門)</button>
-            <button class="mode-btn" onclick="switchMode('defensive')">防守型 (冷門)</button>
-        </div>
-        <div class="recom-display" id="recom-nums">-- -- -- --</div>
-        <div style="text-align:center;">今日實戰命中率：<span id="win-rate" style="color:var(--gold)">0</span>%</div>
-    </div>
+<div class="container">
+    <h1 style="text-align: center; color: var(--gold);">🛠 BINGO AI 量化分析系統</h1>
 
-    <div class="card">
-        <h2>📊 實戰建議比對看板 (含超級獎號查詢)</h2>
-        <div style="margin-bottom: 15px;">
-            查詢日期：<input type="date" id="date-query" onchange="loadData()">
+    <div class="grid">
+        <div class="card recom-box">
+            <h2>🎯 下期四星預測</h2>
+            <div style="margin-bottom: 15px;">
+                <button class="mode-btn active" onclick="setMode('adaptive')">自適應</button>
+                <button class="mode-btn" onclick="setMode('aggressive')">激進</button>
+                <button class="mode-btn" onclick="setMode('defensive')">防守</button>
+            </div>
+            <div class="num-display" id="main-recom">-- -- -- --</div>
+            <div style="font-size: 0.9em;">今日實戰中獎率：<span id="win-rate" class="win">0</span>%</div>
         </div>
-        <div style="overflow-x: auto;">
-            <table>
-                <thead>
-                    <tr>
-                        <th>期數</th>
-                        <th>系統當期建議</th>
-                        <th>實際開獎號碼</th>
-                        <th>超級</th>
-                        <th>命中</th>
-                        <th>結果</th>
-                    </tr>
-                </thead>
-                <tbody id="comp-body"></tbody>
-            </table>
+
+        <div class="card recom-box" style="border-top-color: #ff4444;">
+            <h2>🔥 超級獎號建議 (熱力尾數)</h2>
+            <div class="num-display" id="super-recom" style="color: #ff4444;">-- -- -- --</div>
+            <div style="font-size: 0.8em; opacity: 0.6;">基於今日強勢尾數循環與遺漏分析</div>
         </div>
     </div>
 
-    <script>
-        let allData = null;
-        let currentMode = 'adaptive';
-
-        async function loadData() {
-            const date = document.getElementById('date-query').value;
-            const res = await fetch(`./api/strategy${date ? '?date='+date : ''}`);
-            allData = await res.json();
-            render();
-        }
-
-        function switchMode(mode) {
-            currentMode = mode;
-            document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
-            event.target.classList.add('active');
-            render();
-        }
-
-        function render() {
-            if(!allData || allData.status !== 'success') return;
-
-            // 更新建議號碼
-            document.getElementById('recom-nums').innerText = allData.next_recom[currentMode].join(' ');
-            document.getElementById('win-rate').innerText = allData.live_win_rate;
-
-            // 更新表格
-            const body = document.getElementById('comp-body');
-            body.innerHTML = '';
-            allData.history.forEach(item => {
-                const row = `
-                    <tr>
-                        <td>${item.no}<br><small>${item.time}</small></td>
-                        <td style="color:var(--gold)">${item.suggestion.join(',')}</td>
-                        <td style="font-size:0.8em; opacity:0.7;">${item.nums.join(',')}</td>
-                        <td><span class="super-tag">${item.super}</span></td>
-                        <td>${item.match}</td>
-                        <td>${item.is_win ? '<span class="win-tag">★中獎</span>' : '未中'}</td>
-                    </tr>
-                `;
-                body.innerHTML += row;
-            });
-        }
-
-        // 初始載入
-        document.getElementById('date-query').valueAsDate = new Date();
-        loadData();
-    </script>
-</body>
-</html>
+    <div class="grid">
+        <div class="card">
+            <h3>📊 號碼分佈 (熱/冷)</h3>
+            <div id="hot-nums" style="margin-bottom: 10px;"></div>
+            <div id="cold-nums" style="opacity: 0.6;"></div>
+        </div>
+        <div class="card">
+            <h3>🔗 連號組合 (熱/冷)</h3>
+            <div id="hot-pairs" style="margin-bottom: 10px;"></div>
+            <div id="cold-
