@@ -1,49 +1,179 @@
-<div class="grid">
-    <div class="card">
-        <h3>🔥 連續開出 (連N期)</h3>
-        <div id="hot-streak-list"></div>
-        <h3 style="margin-top:20px;">❄️ 長期未開 (遺漏N期)</h3>
-        <div id="cold-streak-list"></div>
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BINGO PRO 終極量化後台</title>
+    <style>
+        :root { --gold: #ffcc00; --bg: #0b101a; --card: #161e2e; --text: #cfd8dc; --hot: #ff4d4d; --cold: #4fc3f7; }
+        body { background: var(--bg); color: var(--text); font-family: 'PingFang TC', sans-serif; margin: 0; padding: 20px; }
+        .container { max-width: 1200px; margin: 0 auto; }
+        .header { text-align: center; margin-bottom: 30px; border-bottom: 2px solid var(--gold); padding-bottom: 10px; }
+        
+        /* 網格系統 */
+        .dashboard-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; }
+        .card { background: var(--card); border-radius: 15px; padding: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); border: 1px solid #2d3748; }
+        .card h2 { font-size: 1.2em; color: var(--gold); margin-top: 0; display: flex; align-items: center; gap: 10px; }
+        
+        /* 號碼球樣式 */
+        .ball-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+        .tag { background: #2d3748; color: var(--gold); padding: 5px 12px; border-radius: 20px; font-weight: bold; font-size: 0.9em; border: 1px solid #4a5568; }
+        .streak-hot { color: var(--hot); }
+        .streak-cold { color: var(--cold); }
+
+        /* 核心建議區 */
+        .recom-hero { grid-column: span 2; text-align: center; background: linear-gradient(145deg, #1e293b, #0f172a); border: 2px solid var(--gold); }
+        .num-big { font-size: 3.5em; font-weight: 800; letter-spacing: 10px; color: var(--gold); text-shadow: 0 0 20px rgba(255,204,0,0.4); margin: 20px 0; }
+        
+        /* 表格樣式 */
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th { text-align: left; color: #718096; font-size: 0.8em; padding: 10px; border-bottom: 1px solid #2d3748; }
+        td { padding: 12px 10px; border-bottom: 1px solid #1a202c; font-size: 0.9em; }
+        .super-ball { background: var(--gold); color: black; width: 28px; height: 28px; display: inline-flex; align-items: center; justify-content: center; border-radius: 50%; font-weight: bold; }
+        
+        .mode-btn { background: #2d3748; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; transition: 0.3s; }
+        .mode-btn.active { background: var(--gold); color: black; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="header">
+        <h1>🛠️ BINGO PRO 數據量化分析系統</h1>
+        <p>實戰數據驅動 · AI 策略優化</p>
     </div>
 
-    <div class="card">
-        <h3>🔗 連號遺漏追蹤 (5期以上)</h3>
-        <table id="pair-miss-table">
-            <thead><tr><th>組合</th><th>未開期數</th></tr></thead>
-            <tbody></tbody>
-        </table>
-    </div>
+    <div class="dashboard-grid">
+        <div class="card recom-hero">
+            <h2>🎯 下期四星推薦 (AI 策略)</h2>
+            <div style="margin-bottom: 15px;">
+                <button class="mode-btn active" onclick="changeMode('adaptive')">自適應</button>
+                <button class="mode-btn" onclick="changeMode('aggressive')">激進</button>
+                <button class="mode-btn" onclick="changeMode('defensive')">防守</button>
+            </div>
+            <div class="num-big" id="recom-nums">-- -- -- --</div>
+            <div style="font-size: 1.1em; color: #48bb78;">今日實戰勝率：<span id="win-rate">0</span>%</div>
+        </div>
 
-    <div class="card">
-        <h3>👯 同時出現頻率 (最強組合)</h3>
-        <div id="corr-list"></div>
+        <div class="card" style="border-top: 4px solid var(--hot);">
+            <h2>🔥 超級獎號預測 (熱力尾數)</h2>
+            <div class="num-big" id="super-recom" style="font-size: 2.5em; color: var(--hot);">-- -- -- --</div>
+            <p style="font-size: 0.8em; opacity: 0.6;">分析今日最強勢尾數規律推薦</p>
+        </div>
+
+        <div class="card">
+            <h2>📈 號碼趨勢追蹤</h2>
+            <div style="margin-bottom: 15px;">
+                <strong class="streak-hot">🔥 連續開出：</strong>
+                <div class="ball-row" id="hot-streaks"></div>
+            </div>
+            <div>
+                <strong class="streak-cold">❄️ 長期未開 (遺漏)：</strong>
+                <div class="ball-row" id="cold-streaks"></div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>🔗 連號組合遺漏 (5期以上)</h2>
+            <table>
+                <thead><tr><th>組合</th><th>遺漏期數</th></tr></thead>
+                <tbody id="pair-miss-body"></tbody>
+            </table>
+        </div>
+
+        <div class="card">
+            <h2>👯 今日黃金組合 (同出)</h2>
+            <div id="corr-list" style="line-height: 2;"></div>
+        </div>
+
+        <div class="card" style="grid-column: span 2;">
+            <div style="display:flex; justify-content: space-between; align-items: center; margin-bottom:15px;">
+                <h2>📋 實戰建議比對看板</h2>
+                <input type="date" id="date-select" onchange="loadData()" style="background:#2d3748; color:white; border:none; padding:8px; border-radius:5px;">
+            </div>
+            <div style="overflow-x: auto;">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>期數</th>
+                            <th>當時建議</th>
+                            <th>實際開獎號碼 (前10)</th>
+                            <th>超級</th>
+                            <th>命中</th>
+                            <th>結果</th>
+                        </tr>
+                    </thead>
+                    <tbody id="history-body"></tbody>
+                </table>
+            </div>
+        </div>
     </div>
 </div>
 
 <script>
-function render() {
-    if(!resData) return;
+    let rawData = null;
+    let currentMode = 'adaptive';
 
-    // 1. 連續開出
-    document.getElementById('hot-streak-list').innerHTML = resData.hot_streaks.map(item => 
-        `<span class="tag" style="background:#ff4444; color:white;">${item.num} (連${item.val}期)</span>`
-    ).join('');
-
-    // 2. 遺漏期數
-    document.getElementById('cold-streak-list').innerHTML = resData.cold_streaks.map(item => 
-        `<span class="tag" style="background:#546e7a; color:white;">${item.num} (缺${item.val}期)</span>`
-    ).join('');
-
-    // 3. 連號遺漏表格
-    const pmBody = document.querySelector('#pair-miss-table tbody');
-    pmBody.innerHTML = '';
-    for (const [pair, miss] of Object.entries(resData.pair_missing)) {
-        pmBody.innerHTML += `<tr><td>${pair}</td><td style="color:#ffcc00; font-weight:bold;">${miss} 期</td></tr>`;
+    async function loadData() {
+        const date = document.getElementById('date-select').value;
+        try {
+            const res = await fetch(`./api/strategy${date ? '?date='+date : ''}`);
+            rawData = await res.json();
+            render();
+        } catch (e) {
+            console.error("無法讀取數據:", e);
+        }
     }
 
-    // 4. 強勢組合
-    document.getElementById('corr-list').innerHTML = resData.correlations.map(item => 
-        `<div style="margin-bottom:8px;">💎 <b>${item.pair}</b> : 今日同出 ${item.count} 次</div>`
-    ).join('');
-}
+    function changeMode(m) {
+        currentMode = m;
+        document.querySelectorAll('.mode-btn').forEach(b => b.classList.toggle('active', b.innerText.includes(m === 'adaptive' ? '自適應' : m === 'aggressive' ? '激進' : '防守')));
+        render();
+    }
+
+    function render() {
+        if(!rawData || rawData.status !== 'success') return;
+
+        // 核心建議
+        document.getElementById('recom-nums').innerText = rawData.next_recom[currentMode].join(' ');
+        document.getElementById('super-recom').innerText = rawData.super_recom.join(' ');
+        document.getElementById('win-rate').innerText = rawData.live_win_rate;
+
+        // 連開/遺漏渲染
+        document.getElementById('hot-streaks').innerHTML = rawData.hot_streaks.map(i => `<span class="tag streak-hot">${i.num}(${i.val}期)</span>`).join('');
+        document.getElementById('cold-streaks').innerHTML = rawData.cold_streaks.map(i => `<span class="tag streak-cold">${i.num}(${i.val}期)</span>`).join('');
+
+        // 連號遺漏表格
+        const pmBody = document.getElementById('pair-miss-body');
+        pmBody.innerHTML = '';
+        for (const [pair, miss] of Object.entries(rawData.pair_missing)) {
+            pmBody.innerHTML += `<tr><td>${pair}</td><td style="color:var(--gold)">${miss} 期</td></tr>`;
+        }
+
+        // 強勢聯動
+        document.getElementById('corr-list').innerHTML = rawData.correlations.map(i => `<div>💎 <b>${i.pair}</b> : 同出 ${i.count} 次</div>`).join('');
+
+        // 歷史表格
+        const hBody = document.getElementById('history-body');
+        hBody.innerHTML = '';
+        rawData.history.slice(0, 15).forEach(h => {
+            hBody.innerHTML += `
+                <tr>
+                    <td>${h.no}<br><small style="color:#666">${h.time}</small></td>
+                    <td style="color:var(--gold); font-weight:bold;">${h.suggestion.join(', ')}</td>
+                    <td style="font-size:0.85em; opacity:0.6;">${h.nums.slice(0,10).join(', ')}...</td>
+                    <td><div class="super-ball">${h.super}</div></td>
+                    <td>${h.match}</td>
+                    <td style="color:${h.is_win ? '#48bb78' : '#666'}">${h.is_win ? '★ 中獎' : '未中'}</td>
+                </tr>
+            `;
+        });
+    }
+
+    document.getElementById('date-select').valueAsDate = new Date();
+    loadData();
+    setInterval(loadData, 60000);
 </script>
+
+</body>
+</html>
