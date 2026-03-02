@@ -1,143 +1,49 @@
-<!DOCTYPE html>
-<html lang="zh-TW">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BINGO AI 量化策略終端</title>
-    <style>
-        :root { --gold: #ffcc00; --bg: #0b0e14; --card: #1c2331; --text: #cfd8dc; }
-        body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', sans-serif; margin: 0; padding: 15px; }
-        .container { max-width: 1200px; margin: 0 auto; }
-        .card { background: var(--card); border-radius: 12px; padding: 20px; margin-bottom: 15px; border-top: 3px solid var(--gold); box-shadow: 0 4px 15px rgba(0,0,0,0.5); }
-        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 15px; }
-        .recom-box { text-align: center; background: linear-gradient(145deg, #232d3f, #0b0e14); padding: 30px; border: 1px solid #333; }
-        .num-display { font-size: 2.8em; font-weight: 900; color: var(--gold); letter-spacing: 8px; margin: 15px 0; text-shadow: 0 0 20px rgba(255,204,0,0.3); }
-        .tag { display: inline-block; background: #37474f; color: var(--gold); padding: 4px 10px; border-radius: 5px; margin: 3px; font-weight: bold; font-size: 0.9em; }
-        .mode-btn { background: #263238; color: #888; border: 1px solid #444; padding: 8px 16px; cursor: pointer; border-radius: 4px; transition: 0.3s; }
-        .mode-btn.active { background: var(--gold); color: black; border-color: var(--gold); font-weight: bold; }
-        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-        th { text-align: left; color: #888; font-size: 0.8em; border-bottom: 2px solid #333; padding: 10px; }
-        td { padding: 12px 10px; border-bottom: 1px solid #252d3d; font-size: 0.85em; }
-        .win { color: #4caf50; font-weight: bold; }
-        .super-ball { background: var(--gold); color: black; width: 25px; height: 25px; display: inline-flex; align-items: center; justify-content: center; border-radius: 50%; font-weight: bold; }
-    </style>
-</head>
-<body>
-
-<div class="container">
-    <h1 style="text-align: center; color: var(--gold);">🛠 BINGO AI 量化分析系統</h1>
-
-    <div class="grid">
-        <div class="card recom-box">
-            <h2>🎯 下期四星預測</h2>
-            <div style="margin-bottom: 15px;">
-                <button class="mode-btn active" onclick="setMode('adaptive')">自適應</button>
-                <button class="mode-btn" onclick="setMode('aggressive')">激進</button>
-                <button class="mode-btn" onclick="setMode('defensive')">防守</button>
-            </div>
-            <div class="num-display" id="main-recom">-- -- -- --</div>
-            <div style="font-size: 0.9em;">今日實戰中獎率：<span id="win-rate" class="win">0</span>%</div>
-        </div>
-
-        <div class="card recom-box" style="border-top-color: #ff4444;">
-            <h2>🔥 超級獎號建議 (熱力尾數)</h2>
-            <div class="num-display" id="super-recom" style="color: #ff4444;">-- -- -- --</div>
-            <div style="font-size: 0.8em; opacity: 0.6;">基於今日強勢尾數循環與遺漏分析</div>
-        </div>
-    </div>
-
-    <div class="grid">
-        <div class="card">
-            <h3>📊 號碼分佈 (熱/冷)</h3>
-            <div id="hot-nums" style="margin-bottom: 10px;"></div>
-            <div id="cold-nums" style="opacity: 0.6;"></div>
-        </div>
-        <div class="card">
-            <h3>🔗 連號組合 (熱/冷)</h3>
-            <div id="hot-pairs" style="margin-bottom: 10px;"></div>
-            <div id="cold-pairs" style="opacity: 0.6;"></div>
-        </div>
+<div class="grid">
+    <div class="card">
+        <h3>🔥 連續開出 (連N期)</h3>
+        <div id="hot-streak-list"></div>
+        <h3 style="margin-top:20px;">❄️ 長期未開 (遺漏N期)</h3>
+        <div id="cold-streak-list"></div>
     </div>
 
     <div class="card">
-        <div style="display: flex; justify-content: space-between; align-items: center;">
-            <h3 style="margin: 0;">📋 實戰比對與歷史查詢</h3>
-            <input type="date" id="q-date" onchange="fetchData()" style="background:#263238; color:white; border:none; padding:5px; border-radius:4px;">
-        </div>
-        <div style="overflow-x: auto;">
-            <table>
-                <thead>
-                    <tr>
-                        <th>期數</th>
-                        <th>系統當時建議</th>
-                        <th>實際開獎</th>
-                        <th>超級</th>
-                        <th>命中</th>
-                        <th>狀態</th>
-                    </tr>
-                </thead>
-                <tbody id="history-body"></tbody>
-            </table>
-        </div>
+        <h3>🔗 連號遺漏追蹤 (5期以上)</h3>
+        <table id="pair-miss-table">
+            <thead><tr><th>組合</th><th>未開期數</th></tr></thead>
+            <tbody></tbody>
+        </table>
+    </div>
+
+    <div class="card">
+        <h3>👯 同時出現頻率 (最強組合)</h3>
+        <div id="corr-list"></div>
     </div>
 </div>
 
 <script>
-    let resData = null;
-    let mode = 'adaptive';
+function render() {
+    if(!resData) return;
 
-    async function fetchData() {
-        const date = document.getElementById('q-date').value;
-        const res = await fetch(`./api/strategy${date ? '?date='+date : ''}`);
-        resData = await res.json();
-        render();
+    // 1. 連續開出
+    document.getElementById('hot-streak-list').innerHTML = resData.hot_streaks.map(item => 
+        `<span class="tag" style="background:#ff4444; color:white;">${item.num} (連${item.val}期)</span>`
+    ).join('');
+
+    // 2. 遺漏期數
+    document.getElementById('cold-streak-list').innerHTML = resData.cold_streaks.map(item => 
+        `<span class="tag" style="background:#546e7a; color:white;">${item.num} (缺${item.val}期)</span>`
+    ).join('');
+
+    // 3. 連號遺漏表格
+    const pmBody = document.querySelector('#pair-miss-table tbody');
+    pmBody.innerHTML = '';
+    for (const [pair, miss] of Object.entries(resData.pair_missing)) {
+        pmBody.innerHTML += `<tr><td>${pair}</td><td style="color:#ffcc00; font-weight:bold;">${miss} 期</td></tr>`;
     }
 
-    function setMode(m) {
-        mode = m;
-        document.querySelectorAll('.mode-btn').forEach(b => b.classList.toggle('active', b.innerText.includes(m === 'adaptive' ? '自適應' : m === 'aggressive' ? '激進' : '防守')));
-        render();
-    }
-
-    function render() {
-        if(!resData || resData.status !== 'success') return;
-
-        // 1. 更新推薦區
-        document.getElementById('main-recom').innerText = resData.next_recom[mode].map(n => n.toString().padStart(2, '0')).join(' ');
-        document.getElementById('super-recom').innerText = resData.super_recom.map(n => n.toString().padStart(2, '0')).join(' ');
-        document.getElementById('win-rate').innerText = resData.live_win_rate;
-
-        // 2. 更新統計標籤
-        const drawTags = (id, list) => {
-            document.getElementById(id).innerHTML = list.map(n => `<span class="tag">${n}</span>`).join('');
-        };
-        drawTags('hot-nums', resData.hot_nums);
-        drawTags('cold-nums', resData.cold_nums);
-        drawTags('hot-pairs', resData.hot_pairs);
-        drawTags('cold-pairs', resData.cold_pairs);
-
-        // 3. 更新回測表格
-        const body = document.getElementById('history-body');
-        body.innerHTML = '';
-        resData.history.forEach(d => {
-            const row = `
-                <tr>
-                    <td>${d.no}<br><small style="color:#666">${d.time}</small></td>
-                    <td style="color:var(--gold); font-weight:bold;">${d.suggestion.join(', ')}</td>
-                    <td style="font-size:0.8em; opacity:0.6;">${d.nums.join(', ')}</td>
-                    <td><div class="super-ball">${d.super}</div></td>
-                    <td>${d.match}</td>
-                    <td class="${d.is_win ? 'win' : ''}">${d.is_win ? '★ 中獎' : '未中'}</td>
-                </tr>
-            `;
-            body.innerHTML += row;
-        });
-    }
-
-    document.getElementById('q-date').valueAsDate = new Date();
-    fetchData();
-    setInterval(fetchData, 60000); // 每分鐘自動刷新
+    // 4. 強勢組合
+    document.getElementById('corr-list').innerHTML = resData.correlations.map(item => 
+        `<div style="margin-bottom:8px;">💎 <b>${item.pair}</b> : 今日同出 ${item.count} 次</div>`
+    ).join('');
+}
 </script>
-
-</body>
-</html>
